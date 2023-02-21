@@ -3,10 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'screens/chat_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/signup_screen.dart';
-import 'screens/password_reset_screen.dart';
+import 'screens/start_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,12 +24,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
         routes: {
-          '/login': (context) => const LoginScreen(),
-          '/password-reset': (context) => const PasswordResetScreen(),
-          '/signup': (context) => const SignUpScreen(),
+          '/start': (context) => const StartScreen(),
           '/home': (context) => const HomeScreen(),
+          '/chat': (context) => const ChatScreen(),
         },
         title: 'Chat App',
+        scrollBehavior: const ScrollBehavior().copyWith(
+          // Disable overscroll glow effect
+          overscroll: false,
+        ),
         theme: ThemeData(
           primarySwatch: Colors.indigo,
         ),
@@ -49,7 +51,7 @@ class MyApp extends StatelessWidget {
             }
             if (snapshot.connectionState == ConnectionState.done) {
               return FirebaseAuth.instance.currentUser == null
-                  ? const SignUpScreen()
+                  ? const StartScreen()
                   : const HomeScreen();
             }
             return const Scaffold(
