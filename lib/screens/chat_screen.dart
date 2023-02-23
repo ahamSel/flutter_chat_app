@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class ChatScreen extends StatefulWidget {
-  final QueryDocumentSnapshot receiverDoc;
+  final dynamic receiverDoc;
 
   const ChatScreen({super.key, required this.receiverDoc});
 
@@ -92,7 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 _auth.currentUser!.uid
                             ? Theme.of(context).primaryColor
                             : Colors.grey,
-                        title: Text(snapshot.data!.docs[index]['text'],
+                        title: Text(snapshot.data!.docs[index]['message'],
                             textAlign: snapshot.data!.docs[index]['senderId'] ==
                                     _auth.currentUser!.uid
                                 ? TextAlign.right
@@ -154,7 +154,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                         .collection(chatId)
                                         .doc(),
                                     {
-                                      'text': message,
+                                      'message': message,
                                       'senderId': _auth.currentUser!.uid,
                                       'receiverId': widget.receiverDoc.id,
                                       'timestamp': Timestamp.now(),
@@ -163,8 +163,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                   transaction.set(
                                     _firestore.collection('chats').doc(chatId),
                                     {
+                                      'users': [
+                                        _auth.currentUser!.uid,
+                                        widget.receiverDoc.id
+                                      ],
                                       'lastMessage': {
-                                        'text': message,
+                                        'message': message,
                                         'senderId': _auth.currentUser!.uid,
                                         'receiverId': widget.receiverDoc.id,
                                         'timestamp': Timestamp.now(),
@@ -172,28 +176,6 @@ class _ChatScreenState extends State<ChatScreen> {
                                     },
                                   ),
                                 });
-                            // _firestore
-                            //     .collection('chats')
-                            //     .doc(chatId)
-                            //     .get()
-                            //     .then((value) {
-                            //   value.reference.collection(chatId).add({
-                            //     'text': message,
-                            //     'senderId': _auth.currentUser!.uid,
-                            //     'receiverId': widget.receiverDoc.id,
-                            //     'timestamp':
-                            //         DateTime.now().millisecondsSinceEpoch,
-                            //   });
-                            //   value.reference.set({
-                            //     'lastMessage': {
-                            //       'text': message,
-                            //       'senderId': _auth.currentUser!.uid,
-                            //       'receiverId': widget.receiverDoc.id,
-                            //       'timestamp':
-                            //           DateTime.now().millisecondsSinceEpoch,
-                            //     }
-                            //   });
-                            // });
                           },
                           splashColor: Colors.transparent,
                           highlightColor: Colors.transparent,

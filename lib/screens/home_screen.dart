@@ -32,9 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Stream<QuerySnapshot> getUserChats() {
     return _firestore
-        .collection('users')
-        .doc(_auth.currentUser?.uid)
         .collection('chats')
+        .where('users', arrayContains: _auth.currentUser?.uid)
         .snapshots();
   }
 
@@ -385,46 +384,72 @@ class _HomeScreenState extends State<HomeScreen> {
                           return const Center(
                             child: CircularProgressIndicator(),
                           );
+                        } else if (snapshot.data!.docs.isEmpty) {
+                          return const Center(
+                            child: Text('No recent chats found.'),
+                          );
                         }
                         return ListView(
                           children: snapshot.data!.docs.map((document) {
-                            return InkWell(
-                              onTap: () {
-                                Navigator.of(context).push(MaterialPageRoute(
-                                    builder: (context) =>
-                                        ChatScreen(receiverDoc: document)));
-                              },
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 10),
-                                child: Row(
-                                  children: [
-                                    const SizedBox(width: 20),
-                                    const CircleAvatar(
-                                      radius: 35,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(document['username'],
-                                            style:
-                                                const TextStyle(fontSize: 16)),
-                                        const SizedBox(height: 5),
-                                        const SizedBox(
-                                          width: 200,
-                                          child: Text(
-                                            'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                                            style: TextStyle(fontSize: 14),
-                                            overflow: TextOverflow.ellipsis,
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: FutureBuilder(
+                                  future: _firestore
+                                      .collection('users')
+                                      .doc(document['users'][0] ==
+                                              _auth.currentUser!.uid
+                                          ? document['users'][1]
+                                          : document['users'][0])
+                                      .get(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasError) {
+                                      return const Center(
+                                          child: Text('Error loading chat'));
+                                    }
+                                    if (!snapshot.hasData) {
+                                      return const SizedBox();
+                                    }
+                                    return InkWell(
+                                      onTap: () {
+                                        Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ChatScreen(
+                                                        receiverDoc:
+                                                            snapshot.data)));
+                                      },
+                                      child: Row(
+                                        children: [
+                                          const SizedBox(width: 20),
+                                          const CircleAvatar(
+                                            radius: 35,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                          const SizedBox(width: 10),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(snapshot.data!['username'],
+                                                  style: const TextStyle(
+                                                      fontSize: 16)),
+                                              const SizedBox(height: 5),
+                                              SizedBox(
+                                                width: 200,
+                                                child: Text(
+                                                  document['lastMessage']
+                                                      ['message'],
+                                                  style: const TextStyle(
+                                                      fontSize: 14),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
                             );
                           }).toList(),
                         );
