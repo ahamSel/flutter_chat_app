@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/loading.dart';
+import 'home_screen.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -68,43 +69,56 @@ class _StartScreenState extends State<StartScreen> {
                         _formKey.currentState!.save();
                         setState(() => isLoading = true);
                         try {
-                          final QuerySnapshot usernamesSnapshot =
-                              await _firestore
+                          await _firestore
+                              .runTransaction((transaction) => transaction
+                                      .get(_firestore
+                                          .collection('info')
+                                          .doc('unicity'))
+                                      .then((unicityDoc) async {
+                                    final QuerySnapshot usernamesSnapshot =
+                                        await _firestore
+                                            .collection('users')
+                                            .where('username',
+                                                isEqualTo: _username)
+                                            .get();
+                                    if (usernamesSnapshot.docs.isNotEmpty) {
+                                      setState(() => isLoading = false);
+                                      Future.delayed(
+                                          const Duration(),
+                                          () => ScaffoldMessenger.of(context)
+                                              .showSnackBar(const SnackBar(
+                                                  content: Text(
+                                                      'This username is already in use by another account.'))));
+                                      return false;
+                                    }
+                                    transaction.update(unicityDoc.reference,
+                                        {'counter': FieldValue.increment(1)});
+                                    await _auth.signInAnonymously().then(
+                                        (value) => _firestore
+                                                .collection('users')
+                                                .doc(value.user!.uid)
+                                                .set({
+                                              'username': _username.isEmpty
+                                                  ? 'Guest-${unicityDoc['counter'] + 1}'
+                                                  : _username,
+                                              'createdAt': Timestamp.now(),
+                                            }));
+                                    return true;
+                                  }))
+                              .then((success) {
+                            if (success) {
+                              Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          const HomeScreen()));
+                            } else if (_auth.currentUser != null) {
+                              _firestore
                                   .collection('users')
-                                  .where('username', isEqualTo: _username)
-                                  .get();
-                          if (usernamesSnapshot.docs.isNotEmpty) {
-                            setState(() => isLoading = false);
-                            Future.delayed(
-                                const Duration(),
-                                () => ScaffoldMessenger.of(context)
-                                    .showSnackBar(const SnackBar(
-                                        content: Text(
-                                            'This username is already in use by another account.'))));
-                            return;
-                          }
-                          DocumentSnapshot guestsDoc = await _firestore
-                              .collection('counters')
-                              .doc('guests')
-                              .get();
-                          await _auth
-                              .signInAnonymously()
-                              .then((value) => _firestore
-                                      .collection('users')
-                                      .doc(value.user?.uid)
-                                      .set({
-                                    'username': _username.isEmpty
-                                        ? 'Guest-${guestsDoc['counter'] + 1}'
-                                        : _username,
-                                    'createdAt': Timestamp.now(),
-                                  }).then((value) async => await _firestore
-                                              .collection('counters')
-                                              .doc('guests')
-                                              .update({
-                                            'counter': FieldValue.increment(1)
-                                          })))
-                              .then((value) => Navigator.pushReplacementNamed(
-                                  context, '/home'));
+                                  .doc(_auth.currentUser!.uid)
+                                  .delete()
+                                  .then((value) => _auth.currentUser!.delete());
+                            }
+                          });
                         } catch (error) {
                           setState(() => isLoading = false);
                           ScaffoldMessenger.of(context).showSnackBar(

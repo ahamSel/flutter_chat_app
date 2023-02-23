@@ -1,8 +1,10 @@
+import 'package:chatapp/screens/start_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/loading.dart';
+import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,7 +26,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<QuerySnapshot> getOtherUsers() {
     return _firestore
         .collection('users')
-        // .where(FieldPath.documentId, isNotEqualTo: _auth.currentUser!.uid)
+        .where(FieldPath.documentId, isNotEqualTo: _auth.currentUser?.uid)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot> getUserChats() {
+    return _firestore
+        .collection('users')
+        .doc(_auth.currentUser?.uid)
+        .collection('chats')
         .snapshots();
   }
 
@@ -67,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           value = value!.trim();
                           if (value != snapshot.data!['username']) {
                             if (value.length < 3 || value.length > 12) {
-                              return "Username must be between 3 and 12 characters";
+                              return "Username must 3 to 12 characters long";
                             } else if (value.contains(' ')) {
                               return "Username cannot contain spaces";
                             }
@@ -79,44 +89,61 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (!_usernameFormKey.currentState!.validate() ||
                               value == snapshot.data!['username']) return;
                           try {
-                            final QuerySnapshot usernamesSnapshot =
-                                await _firestore
-                                    .collection('users')
-                                    .where('username', isEqualTo: value)
-                                    .get();
-                            if (usernamesSnapshot.docs.isNotEmpty) {
-                              Future.delayed(
-                                  const Duration(),
-                                  () => showDialog(
-                                      context: context,
-                                      builder: (context) {
-                                        return AlertDialog(
-                                          content: const Text(
-                                              'This username is already in use by another account.'),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.of(context).pop();
-                                              },
-                                              child: const Text('Ok',
-                                                  style:
-                                                      TextStyle(fontSize: 16)),
-                                            ),
-                                          ],
-                                        );
-                                      }));
-                              return;
-                            }
                             await _firestore
-                                .collection('users')
-                                .doc(_auth.currentUser!.uid)
-                                .update({
-                              'username': value,
-                            }).then((value) => showDialog(
+                                .runTransaction((transaction) => transaction
+                                        .get(_firestore
+                                            .collection('info')
+                                            .doc('unicity'))
+                                        .then((unicityDoc) async {
+                                      final QuerySnapshot usernamesSnapshot =
+                                          await _firestore
+                                              .collection('users')
+                                              .where('username',
+                                                  isEqualTo: value)
+                                              .get();
+                                      if (usernamesSnapshot.docs.isNotEmpty) {
+                                        setState(() => isLoading = false);
+                                        Future.delayed(
+                                            const Duration(),
+                                            () => showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return AlertDialog(
+                                                    content: const Text(
+                                                        'This username is already in use by another account.'),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.of(context)
+                                                              .pop();
+                                                        },
+                                                        child: const Text('Ok',
+                                                            style: TextStyle(
+                                                                fontSize: 16)),
+                                                      ),
+                                                    ],
+                                                  );
+                                                }));
+                                        return false;
+                                      }
+                                      transaction.update(unicityDoc.reference,
+                                          {'counter': FieldValue.increment(1)});
+                                      await _firestore
+                                          .collection('users')
+                                          .doc(_auth.currentUser!.uid)
+                                          .update({
+                                        'username': value,
+                                      });
+                                      return true;
+                                    }))
+                                .then((success) {
+                              if (success) {
+                                showDialog(
                                     context: context,
                                     builder: (context) {
                                       return AlertDialog(
-                                        title: const Text('Username updated',
+                                        title: const Text(
+                                            'Username successfully updated!',
                                             style: TextStyle(
                                                 fontWeight: FontWeight.normal)),
                                         actions: [
@@ -129,7 +156,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ],
                                       );
-                                    }));
+                                    });
+                              } else {
+                                _firestore
+                                    .collection('users')
+                                    .doc(_auth.currentUser!.uid)
+                                    .get()
+                                    .then((userDoc) {
+                                  if (userDoc.data()!['username'] == value) {
+                                    _firestore
+                                        .collection('users')
+                                        .doc(_auth.currentUser!.uid)
+                                        .update({
+                                      'username': snapshot.data!['username'],
+                                    });
+                                  }
+                                });
+                              }
+                            });
                           } catch (e) {
                             showDialog(
                                 context: context,
@@ -163,8 +207,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   setState(() => isLoading = true);
                   _scaffoldKey.currentState!.closeDrawer();
                   try {
-                    await _auth.signOut().then((value) =>
-                        Navigator.of(context).pushReplacementNamed('/start'));
+                    await _auth.signOut().then((value) => Navigator.of(context)
+                        .pushReplacement(MaterialPageRoute(
+                            builder: (context) => const StartScreen())));
                   } catch (e) {
                     setState(() => isLoading = false);
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -199,13 +244,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Navigator.of(context).pop();
                                 _scaffoldKey.currentState!.closeDrawer();
                                 try {
-                                  final String userId = _auth.currentUser!.uid;
-                                  await _auth.currentUser!
+                                  await _firestore
+                                      .collection('users')
+                                      .doc(_auth.currentUser!.uid)
                                       .delete()
-                                      .then((value) => _firestore
-                                          .collection('users')
-                                          .doc(userId)
-                                          .delete())
+                                      .then((value) =>
+                                          _auth.currentUser!.delete())
                                       .then((value) => ScaffoldMessenger.of(
                                               _scaffoldKey.currentContext!)
                                           .showSnackBar(const SnackBar(
@@ -213,7 +257,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   Text('Account deleted!'))))
                                       .then((value) => Navigator.of(
                                               _scaffoldKey.currentContext!)
-                                          .pushReplacementNamed('/start'));
+                                          .pushReplacement(MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const StartScreen())));
                                 } catch (e) {
                                   setState(() => isLoading = false);
                                   ScaffoldMessenger.of(
@@ -251,6 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                         icon: const Icon(Icons.menu_rounded),
                       ),
+                      const SizedBox(width: 10),
                       const Text('Chats', style: TextStyle(fontSize: 24)),
                     ],
                   ),
@@ -292,10 +339,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: snapshot.data!.docs.map((document) {
                             return InkWell(
                               onTap: () {
-                                // navigate to chat screen
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Chat Screen')));
+                                Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (context) =>
+                                        ChatScreen(receiverDoc: document)));
                               },
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -330,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 15),
                   Expanded(
                     child: StreamBuilder(
-                      stream: getOtherUsers(), // TODO: change to getChats
+                      stream: getUserChats(),
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
                           return const Text('Something went wrong');
@@ -344,10 +390,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: snapshot.data!.docs.map((document) {
                             return InkWell(
                               onTap: () {
-                                // navigate to chat screen
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Chat Screen')));
+                                Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (context) =>
+                                        ChatScreen(receiverDoc: document)));
                               },
                               child: Padding(
                                 padding:

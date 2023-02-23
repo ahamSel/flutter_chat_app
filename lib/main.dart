@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'screens/chat_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/start_screen.dart';
 
@@ -23,11 +22,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        routes: {
-          '/start': (context) => const StartScreen(),
-          '/home': (context) => const HomeScreen(),
-          '/chat': (context) => const ChatScreen(),
-        },
         title: 'Chat App',
         scrollBehavior: const ScrollBehavior().copyWith(
           // Disable overscroll glow effect
