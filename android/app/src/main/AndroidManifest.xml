@@ -1,9 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.aham.chatapp">
    <application
-        android:label="chatapp"
+        android:label="Chat"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_chat">
         <activity
             android:name=".MainActivity"
             android:exported="true"

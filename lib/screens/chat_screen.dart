@@ -22,6 +22,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late final String chatId;
 
+  late Stream chatStream;
+
   Stream<QuerySnapshot> getChatStream() {
     return _firestore
         .collection('chats')
@@ -37,6 +39,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (widget.receiverDoc.id.contains('_')) {
       isReceiverDeleted = true;
       chatId = widget.receiverDoc.id;
+      chatStream = getChatStream();
       deletedReceiverId = chatId.split('_')[0] == _auth.currentUser!.uid
           ? chatId.split('_')[1]
           : chatId.split('_')[0];
@@ -45,10 +48,13 @@ class _ChatScreenState extends State<ChatScreen> {
     chatId = _auth.currentUser!.uid.compareTo(widget.receiverDoc.id) > 0
         ? '${_auth.currentUser!.uid}_${widget.receiverDoc.id}'
         : '${widget.receiverDoc.id}_${_auth.currentUser!.uid}';
+    chatStream = getChatStream();
   }
 
   @override
   Widget build(BuildContext context) {
+    Size size = MediaQuery.of(context).size;
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -86,9 +92,9 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: 80),
+            padding: const EdgeInsets.only(bottom: 65),
             child: StreamBuilder(
-              stream: getChatStream(),
+              stream: chatStream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Center(
@@ -102,6 +108,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
                 if (snapshot.hasData) {
                   return ListView.builder(
+                    padding: const EdgeInsets.only(top: 4, bottom: 4),
                     reverse: true,
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
@@ -119,9 +126,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                                horizontal: 13, vertical: 10),
+                            margin: const EdgeInsets.only(
+                                left: 8, right: 8, top: 4),
                             decoration: BoxDecoration(
                               color: isSender
                                   ? Theme.of(context).primaryColor
@@ -134,21 +141,25 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                             ),
                             constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.8,
+                              maxWidth: size.width * 0.8,
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                            child: Wrap(
+                              alignment: WrapAlignment.end,
+                              crossAxisAlignment: WrapCrossAlignment.end,
+                              spacing: 5,
                               children: [
-                                Text(
-                                  message,
-                                  overflow: TextOverflow.visible,
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 16),
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      bottom: 3, right: 5),
+                                  child: Text(
+                                    message,
+                                    overflow: TextOverflow.visible,
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 16),
+                                  ),
                                 ),
-                                const SizedBox(height: 5),
                                 Text(
                                   timestamp,
-                                  textAlign: TextAlign.end,
                                   style: const TextStyle(
                                       color: Colors.white, fontSize: 11),
                                 ),
@@ -169,8 +180,8 @@ class _ChatScreenState extends State<ChatScreen> {
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              color: const Color(0xFFFAFAFA),
-              padding: const EdgeInsets.all(10),
+              height: 65,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               child: TextField(
                 onChanged: (value) => message = value.trim(),
                 decoration: InputDecoration(
@@ -185,13 +196,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       children: [
                         IconButton(
                           onPressed: () {},
-                          icon: const Icon(Icons.attach_file_rounded),
+                          icon: const Icon(Icons.attach_file_rounded, size: 23),
                           splashColor: Colors.transparent,
                           highlightColor: Colors.transparent,
                         ),
                         IconButton(
                           onPressed: () {},
-                          icon: const Icon(Icons.camera_alt_rounded),
+                          icon: const Icon(Icons.camera_alt_rounded, size: 23),
                           splashColor: Colors.transparent,
                           highlightColor: Colors.transparent,
                         ),
@@ -202,7 +213,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           color: Colors.black,
                         ),
                         IconButton(
-                          icon: const Icon(Icons.send_rounded),
+                          icon: const Icon(Icons.send_rounded, size: 23),
                           onPressed: () {
                             if (message.isEmpty) return;
                             _firestore.runTransaction((transaction) async => {
