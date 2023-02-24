@@ -17,6 +17,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String message = '';
 
+  bool isReceiverDeleted = false;
+  String deletedReceiverId = '';
+
   late final String chatId;
 
   Stream<QuerySnapshot> getChatStream() {
@@ -31,6 +34,14 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.receiverDoc.id.contains('_')) {
+      isReceiverDeleted = true;
+      chatId = widget.receiverDoc.id;
+      deletedReceiverId = chatId.split('_')[0] == _auth.currentUser!.uid
+          ? chatId.split('_')[1]
+          : chatId.split('_')[0];
+      return;
+    }
     chatId = _auth.currentUser!.uid.compareTo(widget.receiverDoc.id) > 0
         ? '${_auth.currentUser!.uid}_${widget.receiverDoc.id}'
         : '${widget.receiverDoc.id}_${_auth.currentUser!.uid}';
@@ -55,10 +66,17 @@ class _ChatScreenState extends State<ChatScreen> {
               highlightColor: Colors.transparent,
             ),
             const SizedBox(width: 10),
-            const CircleAvatar(),
+            isReceiverDeleted
+                ? const CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.grey,
+                  )
+                : const CircleAvatar(),
             const SizedBox(width: 10),
             Text(
-              widget.receiverDoc['username'],
+              isReceiverDeleted
+                  ? 'Deleted Account'
+                  : widget.receiverDoc['username'],
               style: const TextStyle(fontSize: 18),
             ),
           ],
@@ -87,16 +105,57 @@ class _ChatScreenState extends State<ChatScreen> {
                     reverse: true,
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
-                      return ListTile(
-                        tileColor: snapshot.data!.docs[index]['senderId'] ==
-                                _auth.currentUser!.uid
-                            ? Theme.of(context).primaryColor
-                            : Colors.grey,
-                        title: Text(snapshot.data!.docs[index]['message'],
-                            textAlign: snapshot.data!.docs[index]['senderId'] ==
-                                    _auth.currentUser!.uid
-                                ? TextAlign.right
-                                : TextAlign.left),
+                      final isSender = snapshot.data!.docs[index]['senderId'] ==
+                          _auth.currentUser!.uid;
+                      final message = snapshot.data!.docs[index]['message'];
+                      final timestamp = snapshot.data!.docs[index]['timestamp']
+                          .toDate()
+                          .toString()
+                          .substring(11, 16);
+                      return Row(
+                        mainAxisAlignment: isSender
+                            ? MainAxisAlignment.end
+                            : MainAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isSender
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey[600],
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(isSender ? 16 : 0),
+                                topRight: Radius.circular(isSender ? 0 : 16),
+                                bottomLeft: const Radius.circular(16),
+                                bottomRight: const Radius.circular(16),
+                              ),
+                            ),
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.8,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  message,
+                                  overflow: TextOverflow.visible,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 16),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  timestamp,
+                                  textAlign: TextAlign.end,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       );
                     },
                   );
@@ -156,8 +215,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                     {
                                       'message': message,
                                       'senderId': _auth.currentUser!.uid,
-                                      'receiverId': widget.receiverDoc.id,
-                                      'timestamp': Timestamp.now(),
+                                      'receiverId': isReceiverDeleted
+                                          ? deletedReceiverId
+                                          : widget.receiverDoc.id,
+                                      'timestamp': FieldValue.serverTimestamp(),
                                     },
                                   ),
                                   transaction.set(
@@ -170,8 +231,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                       'lastMessage': {
                                         'message': message,
                                         'senderId': _auth.currentUser!.uid,
-                                        'receiverId': widget.receiverDoc.id,
-                                        'timestamp': Timestamp.now(),
+                                        'receiverId': isReceiverDeleted
+                                            ? deletedReceiverId
+                                            : widget.receiverDoc.id,
+                                        'timestamp':
+                                            FieldValue.serverTimestamp(),
                                       }
                                     },
                                   ),

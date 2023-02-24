@@ -390,65 +390,135 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         }
                         return ListView(
-                          children: snapshot.data!.docs.map((document) {
+                          children: snapshot.data!.docs.map((chatDoc) {
+                            final otherUserId =
+                                chatDoc['users'][0] == _auth.currentUser!.uid
+                                    ? chatDoc['users'][1]
+                                    : chatDoc['users'][0];
+                            final lastMessageInfo = chatDoc['lastMessage'];
+                            final lastMessage = lastMessageInfo['message'];
+                            final timestamp = lastMessageInfo['timestamp']
+                                .toDate()
+                                .toString()
+                                .substring(11, 16);
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               child: FutureBuilder(
                                   future: _firestore
                                       .collection('users')
-                                      .doc(document['users'][0] ==
-                                              _auth.currentUser!.uid
-                                          ? document['users'][1]
-                                          : document['users'][0])
+                                      .doc(otherUserId)
                                       .get(),
                                   builder: (context, snapshot) {
                                     if (snapshot.hasError) {
                                       return const Center(
                                           child: Text('Error loading chat'));
                                     }
-                                    if (!snapshot.hasData) {
-                                      return const SizedBox();
-                                    }
-                                    return InkWell(
-                                      onTap: () {
-                                        Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ChatScreen(
-                                                        receiverDoc:
-                                                            snapshot.data)));
-                                      },
-                                      child: Row(
-                                        children: [
-                                          const SizedBox(width: 20),
-                                          const CircleAvatar(
-                                            radius: 35,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                    if (snapshot.data != null) {
+                                      if (snapshot.data!.exists) {
+                                        return InkWell(
+                                          onTap: () {
+                                            Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        ChatScreen(
+                                                            receiverDoc:
+                                                                snapshot
+                                                                    .data)));
+                                          },
+                                          child: Row(
                                             children: [
-                                              Text(snapshot.data!['username'],
-                                                  style: const TextStyle(
-                                                      fontSize: 16)),
-                                              const SizedBox(height: 5),
-                                              SizedBox(
-                                                width: 200,
-                                                child: Text(
-                                                  document['lastMessage']
-                                                      ['message'],
-                                                  style: const TextStyle(
-                                                      fontSize: 14),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
+                                              const SizedBox(width: 20),
+                                              const CircleAvatar(
+                                                radius: 35,
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                      snapshot
+                                                          .data!['username'],
+                                                      style: const TextStyle(
+                                                          fontSize: 16)),
+                                                  const SizedBox(height: 5),
+                                                  SizedBox(
+                                                    width: 200,
+                                                    child: Text(
+                                                      "${lastMessageInfo['senderId'] == _auth.currentUser!.uid ? 'You: ' : ''}$lastMessage",
+                                                      style: const TextStyle(
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          fontSize: 14),
+                                                      maxLines: 2,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const Spacer(),
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    right: 20),
+                                                child: Text(timestamp,
+                                                    style: const TextStyle(
+                                                        fontSize: 14)),
                                               ),
                                             ],
                                           ),
-                                        ],
-                                      ),
-                                    );
+                                        );
+                                      } else {
+                                        return InkWell(
+                                          onTap: () {
+                                            Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        ChatScreen(
+                                                            receiverDoc:
+                                                                chatDoc)));
+                                          },
+                                          child: Row(
+                                            children: [
+                                              const SizedBox(width: 20),
+                                              const CircleAvatar(
+                                                radius: 35,
+                                                backgroundColor: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text('Deleted Account',
+                                                      style: TextStyle(
+                                                          fontSize: 16)),
+                                                  const SizedBox(height: 5),
+                                                  SizedBox(
+                                                    width: 200,
+                                                    child: Text(
+                                                      "${lastMessageInfo['senderId'] == _auth.currentUser!.uid ? 'You: ' : ''}$lastMessage",
+                                                      style: const TextStyle(
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          fontSize: 14),
+                                                      maxLines: 2,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const Spacer(),
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    right: 20),
+                                                child: Text(timestamp,
+                                                    style: const TextStyle(
+                                                        fontSize: 14)),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                    }
+                                    return const SizedBox.shrink();
                                   }),
                             );
                           }).toList(),
