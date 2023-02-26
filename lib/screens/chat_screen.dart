@@ -147,6 +147,34 @@ class _ChatScreenState extends State<ChatScreen> {
                                             .collection(chatId)
                                             .doc(snapshot.data!.docs[index].id)
                                             .delete();
+                                        // update the last message in firestore to the second last message if the deleted message is the last message
+                                        if (snapshot.data!.docs.length > 1) {
+                                          if (index == 0) {
+                                            _firestore
+                                                .collection('chats')
+                                                .doc(chatId)
+                                                .update({
+                                              'lastMessage': {
+                                                'message': snapshot.data!
+                                                    .docs[index + 1]['message'],
+                                                'senderId': snapshot
+                                                        .data!.docs[index + 1]
+                                                    ['senderId'],
+                                                'receiverId': snapshot
+                                                        .data!.docs[index + 1]
+                                                    ['receiverId'],
+                                                'timestamp': snapshot
+                                                        .data!.docs[index + 1]
+                                                    ['timestamp'],
+                                              }
+                                            });
+                                          }
+                                        } else {
+                                          _firestore
+                                              .collection('chats')
+                                              .doc(chatId)
+                                              .delete();
+                                        }
                                         Navigator.pop(context);
                                       },
                                       child: const Text('Delete',
@@ -156,6 +184,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                 );
                               },
                             );
+                          } else {
+                            Clipboard.setData(ClipboardData(text: message));
                           }
                         },
                         child: Row(
