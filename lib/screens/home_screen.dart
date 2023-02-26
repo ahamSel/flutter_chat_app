@@ -300,19 +300,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       const Text('Chats', style: TextStyle(fontSize: 24)),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(25)),
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 20),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20),
@@ -399,8 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             final lastMessage = lastMessageInfo['message'];
                             final timestamp = lastMessageInfo['timestamp']
                                 .toDate()
-                                .toString()
-                                .substring(11, 16);
+                                .toString();
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               child: FutureBuilder(
@@ -458,10 +444,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                               const Spacer(),
                                               Padding(
                                                 padding: const EdgeInsets.only(
-                                                    right: 20),
-                                                child: Text(timestamp,
-                                                    style: const TextStyle(
-                                                        fontSize: 14)),
+                                                    right: 15),
+                                                child: Column(
+                                                  children: [
+                                                    Text(
+                                                        timestamp.substring(
+                                                            11, 16),
+                                                        style: const TextStyle(
+                                                            fontSize: 14)),
+                                                    const SizedBox(height: 5),
+                                                    Text(
+                                                        timestamp.substring(
+                                                            0, 10),
+                                                        style: const TextStyle(
+                                                            fontSize: 8.5)),
+                                                  ],
+                                                ),
                                               ),
                                             ],
                                           ),

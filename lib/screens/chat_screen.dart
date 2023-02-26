@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ChatScreen extends StatefulWidget {
   final dynamic receiverDoc;
@@ -117,56 +118,133 @@ class _ChatScreenState extends State<ChatScreen> {
                       final message = snapshot.data!.docs[index]['message'];
                       final timestamp = snapshot.data!.docs[index]['timestamp']
                           .toDate()
-                          .toString()
-                          .substring(11, 16);
-                      return Row(
-                        mainAxisAlignment: isSender
-                            ? MainAxisAlignment.end
-                            : MainAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 13, vertical: 10),
-                            margin: const EdgeInsets.only(
-                                left: 8, right: 8, top: 4),
-                            decoration: BoxDecoration(
-                              color: isSender
-                                  ? Theme.of(context).primaryColor
-                                  : Colors.grey[600],
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(isSender ? 16 : 0),
-                                topRight: Radius.circular(isSender ? 0 : 16),
-                                bottomLeft: const Radius.circular(16),
-                                bottomRight: const Radius.circular(16),
+                          .toString();
+                      return GestureDetector(
+                        onLongPress: () {
+                          if (isSender) {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  title: const Text(
+                                      'What do you want to do with this message?',
+                                      style: TextStyle(fontSize: 18)),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Clipboard.setData(
+                                            ClipboardData(text: message));
+                                        Navigator.pop(context);
+                                      },
+                                      child: const Text('Copy',
+                                          style: TextStyle(fontSize: 16)),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        _firestore
+                                            .collection('chats')
+                                            .doc(chatId)
+                                            .collection(chatId)
+                                            .doc(snapshot.data!.docs[index].id)
+                                            .delete();
+                                        Navigator.pop(context);
+                                      },
+                                      child: const Text('Delete',
+                                          style: TextStyle(fontSize: 16)),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
+                        },
+                        child: Row(
+                          mainAxisAlignment: isSender
+                              ? MainAxisAlignment.end
+                              : MainAxisAlignment.start,
+                          children: [
+                            // show the date if the message is sent on a different day (for the sender)
+                            if (isSender &&
+                                (index == 0 ||
+                                    snapshot.data!.docs[index]['timestamp']
+                                            .toDate()
+                                            .day !=
+                                        snapshot
+                                            .data!.docs[index - 1]['timestamp']
+                                            .toDate()
+                                            .day))
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    top: 10, bottom: 5, left: 10, right: 10),
+                                child: Text(
+                                  timestamp.substring(0, 10),
+                                  style: const TextStyle(
+                                      color: Colors.grey, fontSize: 12),
+                                ),
+                              ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 13, vertical: 10),
+                              margin: const EdgeInsets.only(
+                                  left: 8, right: 8, top: 4),
+                              decoration: BoxDecoration(
+                                color: isSender
+                                    ? Theme.of(context).primaryColor
+                                    : Colors.grey[600],
+                                borderRadius: BorderRadius.only(
+                                  topLeft: Radius.circular(isSender ? 16 : 0),
+                                  topRight: Radius.circular(isSender ? 0 : 16),
+                                  bottomLeft: const Radius.circular(16),
+                                  bottomRight: const Radius.circular(16),
+                                ),
+                              ),
+                              constraints: BoxConstraints(
+                                maxWidth: size.width * 0.7,
+                              ),
+                              child: Wrap(
+                                alignment: WrapAlignment.end,
+                                crossAxisAlignment: WrapCrossAlignment.end,
+                                spacing: 5,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                        bottom: 3, right: 5),
+                                    child: Text(
+                                      message,
+                                      overflow: TextOverflow.visible,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 16),
+                                    ),
+                                  ),
+                                  Text(
+                                    timestamp.substring(11, 16),
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 11),
+                                  ),
+                                ],
                               ),
                             ),
-                            constraints: BoxConstraints(
-                              maxWidth: size.width * 0.8,
-                            ),
-                            child: Wrap(
-                              alignment: WrapAlignment.end,
-                              crossAxisAlignment: WrapCrossAlignment.end,
-                              spacing: 5,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                      bottom: 3, right: 5),
-                                  child: Text(
-                                    message,
-                                    overflow: TextOverflow.visible,
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 16),
-                                  ),
-                                ),
-                                Text(
-                                  timestamp,
+                            // show the date if the message is sent on a different day (for the receiver)
+                            if (!isSender &&
+                                (index == 0 ||
+                                    snapshot.data!.docs[index]['timestamp']
+                                            .toDate()
+                                            .day !=
+                                        snapshot
+                                            .data!.docs[index - 1]['timestamp']
+                                            .toDate()
+                                            .day))
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    top: 10, bottom: 5, left: 10, right: 10),
+                                child: Text(
+                                  timestamp.substring(0, 10),
                                   style: const TextStyle(
-                                      color: Colors.white, fontSize: 11),
+                                      color: Colors.grey, fontSize: 12),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
+                              ),
+                          ],
+                        ),
                       );
                     },
                   );
