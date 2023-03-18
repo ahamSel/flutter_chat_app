@@ -2,6 +2,7 @@ import 'package:chatapp/screens/start_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../widgets/loading.dart';
 import 'chat_screen.dart';
@@ -16,6 +17,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
 
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -35,6 +37,21 @@ class _HomeScreenState extends State<HomeScreen> {
         .collection('chats')
         .where('users', arrayContains: _auth.currentUser?.uid)
         .snapshots();
+  }
+
+  Future<void> notifSetup() async {
+    await _fcm.getToken().then((token) async {
+      await _firestore
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .set({'fcmToken': token}, SetOptions(merge: true));
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    notifSetup();
   }
 
   @override
@@ -70,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                       return TextFormField(
                         key: _usernameFormKey,
+                        textCapitalization: TextCapitalization.sentences,
                         initialValue: snapshot.data!['username'],
                         autovalidateMode: AutovalidateMode.onUserInteraction,
                         validator: (value) {
@@ -144,7 +162,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         title: const Text(
                                             'Username successfully updated!',
                                             style: TextStyle(
-                                                fontWeight: FontWeight.normal)),
+                                                fontWeight: FontWeight.normal,
+                                                fontSize: 18)),
                                         actions: [
                                           TextButton(
                                             onPressed: () {

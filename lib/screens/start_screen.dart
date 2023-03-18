@@ -43,6 +43,7 @@ class _StartScreenState extends State<StartScreen> {
                         )),
                     const SizedBox(height: 100),
                     TextFormField(
+                      textCapitalization: TextCapitalization.sentences,
                       validator: (value) {
                         value = value!.trim();
                         if (value.isNotEmpty) {

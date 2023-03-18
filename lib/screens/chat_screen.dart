@@ -16,7 +16,10 @@ class _ChatScreenState extends State<ChatScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  final messageController = TextEditingController();
   String message = '';
+
+  double _listViewBottomPadding = 60;
 
   bool isReceiverDeleted = false;
   String deletedReceiverId = '';
@@ -40,16 +43,21 @@ class _ChatScreenState extends State<ChatScreen> {
     if (widget.receiverDoc.id.contains('_')) {
       isReceiverDeleted = true;
       chatId = widget.receiverDoc.id;
-      chatStream = getChatStream();
       deletedReceiverId = chatId.split('_')[0] == _auth.currentUser!.uid
           ? chatId.split('_')[1]
           : chatId.split('_')[0];
-      return;
+    } else {
+      chatId = _auth.currentUser!.uid.compareTo(widget.receiverDoc.id) > 0
+          ? '${_auth.currentUser!.uid}_${widget.receiverDoc.id}'
+          : '${widget.receiverDoc.id}_${_auth.currentUser!.uid}';
     }
-    chatId = _auth.currentUser!.uid.compareTo(widget.receiverDoc.id) > 0
-        ? '${_auth.currentUser!.uid}_${widget.receiverDoc.id}'
-        : '${widget.receiverDoc.id}_${_auth.currentUser!.uid}';
     chatStream = getChatStream();
+  }
+
+  @override
+  void dispose() {
+    messageController.dispose();
+    super.dispose();
   }
 
   @override
@@ -90,10 +98,9 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         elevation: 0,
       ),
-      body: Stack(
+      body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 65),
+          Expanded(
             child: StreamBuilder(
               stream: chatStream,
               builder: (context, snapshot) {
@@ -109,7 +116,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
                 if (snapshot.hasData) {
                   return ListView.builder(
-                    padding: const EdgeInsets.only(top: 4, bottom: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     reverse: true,
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
@@ -285,90 +292,96 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              height: 65,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              child: TextField(
-                onChanged: (value) => message = value.trim(),
-                decoration: InputDecoration(
-                  fillColor: Colors.white,
-                  filled: true,
-                  suffixIconColor: Theme.of(context).primaryColor,
-                  hintText: 'Enter a message...',
-                  suffixIcon: SizedBox(
-                    height: 40,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.attach_file_rounded, size: 23),
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                        ),
-                        IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.camera_alt_rounded, size: 23),
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                        ),
-                        const VerticalDivider(
-                          width: 10,
-                          endIndent: 10,
-                          indent: 10,
-                          color: Colors.black,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.send_rounded, size: 23),
-                          onPressed: () {
-                            if (message.isEmpty) return;
-                            _firestore.runTransaction((transaction) async => {
-                                  transaction.set(
-                                    _firestore
-                                        .collection('chats')
-                                        .doc(chatId)
-                                        .collection(chatId)
-                                        .doc(),
-                                    {
+          Container(
+            constraints: const BoxConstraints(
+              maxHeight: 100,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: TextField(
+              controller: messageController,
+              textCapitalization: TextCapitalization.sentences,
+              maxLines: null,
+              onChanged: (value) {
+                message = value.trim();
+              },
+              decoration: InputDecoration(
+                fillColor: Colors.white,
+                filled: true,
+                suffixIconColor: Theme.of(context).primaryColor,
+                hintText: 'Enter a message...',
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                suffixIcon: SizedBox(
+                  height: 40,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.attach_file_rounded, size: 23),
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                      ),
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.camera_alt_rounded, size: 23),
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                      ),
+                      const VerticalDivider(
+                        width: 10,
+                        endIndent: 10,
+                        indent: 10,
+                        color: Colors.black,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.send_rounded, size: 23),
+                        onPressed: () async {
+                          if (messageController.text.isEmpty) return;
+                          messageController.clear();
+                          _firestore.runTransaction((transaction) async => {
+                                transaction.set(
+                                  _firestore
+                                      .collection('chats')
+                                      .doc(chatId)
+                                      .collection(chatId)
+                                      .doc(),
+                                  {
+                                    'message': message,
+                                    'senderId': _auth.currentUser!.uid,
+                                    'receiverId': isReceiverDeleted
+                                        ? deletedReceiverId
+                                        : widget.receiverDoc.id,
+                                    'timestamp': FieldValue.serverTimestamp(),
+                                  },
+                                ),
+                                transaction.set(
+                                  _firestore.collection('chats').doc(chatId),
+                                  {
+                                    'users': [
+                                      _auth.currentUser!.uid,
+                                      widget.receiverDoc.id
+                                    ],
+                                    'lastMessage': {
                                       'message': message,
                                       'senderId': _auth.currentUser!.uid,
                                       'receiverId': isReceiverDeleted
                                           ? deletedReceiverId
                                           : widget.receiverDoc.id,
                                       'timestamp': FieldValue.serverTimestamp(),
-                                    },
-                                  ),
-                                  transaction.set(
-                                    _firestore.collection('chats').doc(chatId),
-                                    {
-                                      'users': [
-                                        _auth.currentUser!.uid,
-                                        widget.receiverDoc.id
-                                      ],
-                                      'lastMessage': {
-                                        'message': message,
-                                        'senderId': _auth.currentUser!.uid,
-                                        'receiverId': isReceiverDeleted
-                                            ? deletedReceiverId
-                                            : widget.receiverDoc.id,
-                                        'timestamp':
-                                            FieldValue.serverTimestamp(),
-                                      }
-                                    },
-                                  ),
-                                });
-                          },
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                        ),
-                      ],
-                    ),
+                                    }
+                                  },
+                                ),
+                              });
+                        },
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                      ),
+                    ],
                   ),
-                  border: const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(25)),
-                  ),
+                ),
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(25)),
                 ),
               ),
             ),
