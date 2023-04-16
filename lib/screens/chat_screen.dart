@@ -1,10 +1,14 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 class ChatScreen extends StatefulWidget {
-  final dynamic receiverDoc;
+  final DocumentSnapshot? receiverDoc;
 
   const ChatScreen({super.key, required this.receiverDoc});
 
@@ -19,12 +23,12 @@ class _ChatScreenState extends State<ChatScreen> {
   final messageController = TextEditingController();
   String message = '';
 
-  double _listViewBottomPadding = 60;
-
   bool isReceiverDeleted = false;
   String deletedReceiverId = '';
 
   late final String chatId;
+
+  String senderUsername = '';
 
   late Stream chatStream;
 
@@ -40,18 +44,23 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.receiverDoc.id.contains('_')) {
+    if (widget.receiverDoc!.id.contains('_')) {
       isReceiverDeleted = true;
-      chatId = widget.receiverDoc.id;
+      chatId = widget.receiverDoc!.id;
       deletedReceiverId = chatId.split('_')[0] == _auth.currentUser!.uid
           ? chatId.split('_')[1]
           : chatId.split('_')[0];
     } else {
-      chatId = _auth.currentUser!.uid.compareTo(widget.receiverDoc.id) > 0
-          ? '${_auth.currentUser!.uid}_${widget.receiverDoc.id}'
-          : '${widget.receiverDoc.id}_${_auth.currentUser!.uid}';
+      chatId = _auth.currentUser!.uid.compareTo(widget.receiverDoc!.id) > 0
+          ? '${_auth.currentUser!.uid}_${widget.receiverDoc!.id}'
+          : '${widget.receiverDoc!.id}_${_auth.currentUser!.uid}';
     }
     chatStream = getChatStream();
+    _firestore
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .get()
+        .then((value) => senderUsername = value['username']);
   }
 
   @override
@@ -91,7 +100,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Text(
               isReceiverDeleted
                   ? 'Deleted Account'
-                  : widget.receiverDoc['username'],
+                  : widget.receiverDoc!['username'],
               style: const TextStyle(fontSize: 18),
             ),
           ],
@@ -214,7 +223,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                 padding: const EdgeInsets.only(
                                     top: 10, bottom: 5, left: 10, right: 10),
                                 child: Text(
-                                  timestamp.substring(0, 10),
+                                  DateFormat('MMM d, yyyy').format(snapshot
+                                      .data!.docs[index]['timestamp']
+                                      .toDate()),
                                   style: const TextStyle(
                                       color: Colors.grey, fontSize: 12),
                                 ),
@@ -275,7 +286,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                 padding: const EdgeInsets.only(
                                     top: 10, bottom: 5, left: 10, right: 10),
                                 child: Text(
-                                  timestamp.substring(0, 10),
+                                  DateFormat('MMM d, yyyy').format(snapshot
+                                      .data!.docs[index]['timestamp']
+                                      .toDate()),
                                   style: const TextStyle(
                                       color: Colors.grey, fontSize: 12),
                                 ),
@@ -336,8 +349,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.send_rounded, size: 23),
-                        onPressed: () async {
-                          if (messageController.text.isEmpty) return;
+                        onPressed: () {
+                          if (messageController.text.trim().isEmpty) return;
                           messageController.clear();
                           _firestore.runTransaction((transaction) async => {
                                 transaction.set(
@@ -351,7 +364,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     'senderId': _auth.currentUser!.uid,
                                     'receiverId': isReceiverDeleted
                                         ? deletedReceiverId
-                                        : widget.receiverDoc.id,
+                                        : widget.receiverDoc!.id,
                                     'timestamp': FieldValue.serverTimestamp(),
                                   },
                                 ),
@@ -360,19 +373,42 @@ class _ChatScreenState extends State<ChatScreen> {
                                   {
                                     'users': [
                                       _auth.currentUser!.uid,
-                                      widget.receiverDoc.id
+                                      widget.receiverDoc!.id
                                     ],
                                     'lastMessage': {
                                       'message': message,
                                       'senderId': _auth.currentUser!.uid,
                                       'receiverId': isReceiverDeleted
                                           ? deletedReceiverId
-                                          : widget.receiverDoc.id,
+                                          : widget.receiverDoc!.id,
                                       'timestamp': FieldValue.serverTimestamp(),
                                     }
                                   },
                                 ),
                               });
+                          if (isReceiverDeleted) return;
+                          http.post(
+                            Uri.parse('https://fcm.googleapis.com/fcm/send'),
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization':
+                                  'key=AAAAAR-cw84:APA91bEyu5UOK62aY8qcCS5nh4TwBC221tHfwtJt9zmz5vltLr1B7r4Mntq9AwbTTZey-OrI4oYsGoizz6gSpcJYwZ3_ZBRFYxa-ezxJmCBTiF7yUw4m68_mkqpyQNDmrg7ay_8Deu32'
+                            },
+                            body: jsonEncode(
+                              {
+                                'to': widget.receiverDoc!['fcmToken'],
+                                'notification': {
+                                  'title': senderUsername,
+                                  'body': message,
+                                },
+                                'data': {
+                                  'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+                                  'senderId': _auth.currentUser!.uid,
+                                  'status': 'done',
+                                },
+                              },
+                            ),
+                          );
                         },
                         splashColor: Colors.transparent,
                         highlightColor: Colors.transparent,

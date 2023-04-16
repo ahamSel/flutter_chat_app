@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../widgets/loading.dart';
 import 'chat_screen.dart';
@@ -18,6 +19,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
 
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -40,11 +43,46 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> notifSetup() async {
+    await _fcm.requestPermission();
     await _fcm.getToken().then((token) async {
       await _firestore
           .collection('users')
           .doc(_auth.currentUser!.uid)
           .set({'fcmToken': token}, SetOptions(merge: true));
+    });
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final RemoteNotification? notification = message.notification;
+      final AndroidNotification? android = message.notification?.android;
+      if (notification != null && android != null) {
+        _notifications.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'messages',
+              'Messsages',
+              icon: android.smallIcon,
+            ),
+          ),
+        );
+      }
+    });
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+      final data = message.data;
+      DocumentSnapshot? senderDoc;
+      await _firestore
+          .collection('users')
+          .doc(data['senderId'])
+          .get()
+          .then((value) => senderDoc = value);
+      Future.delayed(
+          const Duration(),
+          () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => ChatScreen(receiverDoc: senderDoc),
+                ),
+              ));
     });
   }
 
