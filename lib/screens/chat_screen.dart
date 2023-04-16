@@ -391,7 +391,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             Uri.parse('https://fcm.googleapis.com/fcm/send'),
                             headers: {
                               'Content-Type': 'application/json',
-                              'Authorization':
+                              'Authorization': // change key
                                   'key=AAAAAR-cw84:APA91bEyu5UOK62aY8qcCS5nh4TwBC221tHfwtJt9zmz5vltLr1B7r4Mntq9AwbTTZey-OrI4oYsGoizz6gSpcJYwZ3_ZBRFYxa-ezxJmCBTiF7yUw4m68_mkqpyQNDmrg7ay_8Deu32'
                             },
                             body: jsonEncode(
