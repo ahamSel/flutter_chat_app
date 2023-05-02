@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:chatapp/components/static_vars.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    StaticVars.onChatScreen = true;
     if (widget.receiverDoc!.id.contains('_')) {
       isReceiverDeleted = true;
       chatId = widget.receiverDoc!.id;
@@ -83,6 +85,7 @@ class _ChatScreenState extends State<ChatScreen> {
             IconButton(
               constraints: const BoxConstraints(),
               onPressed: () {
+                StaticVars.onChatScreen = false;
                 Navigator.pop(context);
               },
               icon: const Icon(Icons.arrow_back_rounded),
@@ -232,7 +235,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 13, vertical: 10),
+                                  horizontal: 10, vertical: 8),
                               margin: const EdgeInsets.only(
                                   left: 8, right: 8, top: 4),
                               decoration: BoxDecoration(
@@ -392,12 +395,14 @@ class _ChatScreenState extends State<ChatScreen> {
                             headers: {
                               'Content-Type': 'application/json',
                               'Authorization': // change key
-                                  'key=AAAAAR-cw84:APA91bEyu5UOK62aY8qcCS5nh4TwBC221tHfwtJt9zmz5vltLr1B7r4Mntq9AwbTTZey-OrI4oYsGoizz6gSpcJYwZ3_ZBRFYxa-ezxJmCBTiF7yUw4m68_mkqpyQNDmrg7ay_8Deu32'
+                                  'key=AAAAAR-cw84:APA91bGHqbPyVVg2hnh5QZkk8esh5ecxO6ExS46R1iGf0byXXStXG0mPnj32GaGd5dgRn2n77Wz0qC_hyecoKe2W1lQO8C6-5S82jmLHj-4iHcWz_oM5GyfJLBtVHuLhHgVU5Kjpzdr-'
                             },
                             body: jsonEncode(
                               {
+                                'priority': 'high',
                                 'to': widget.receiverDoc!['fcmToken'],
                                 'notification': {
+                                  'icon': '@drawable/ic_notif_chat',
                                   'title': senderUsername,
                                   'body': message,
                                 },

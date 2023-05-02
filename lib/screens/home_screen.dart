@@ -1,9 +1,11 @@
+import 'package:chatapp/components/static_vars.dart';
 import 'package:chatapp/screens/start_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 
 import '../widgets/loading.dart';
 import 'chat_screen.dart';
@@ -19,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _notifications =
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
   final _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -50,23 +52,30 @@ class _HomeScreenState extends State<HomeScreen> {
           .doc(_auth.currentUser!.uid)
           .set({'fcmToken': token}, SetOptions(merge: true));
     });
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      final RemoteNotification? notification = message.notification;
-      final AndroidNotification? android = message.notification?.android;
-      if (notification != null && android != null) {
-        _notifications.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              'messages',
-              'Messsages',
-              icon: android.smallIcon,
+    _fcm.getInitialMessage().then((message) async {
+      if (message == null) return;
+      final data = message.data;
+      DocumentSnapshot? senderDoc;
+      await _firestore
+          .collection('users')
+          .doc(data['senderId'])
+          .get()
+          .then((value) => senderDoc = value);
+      Future.delayed(const Duration(), () {
+        if (!StaticVars.onChatScreen) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(receiverDoc: senderDoc),
             ),
-          ),
-        );
-      }
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(receiverDoc: senderDoc),
+            ),
+          );
+        }
+      });
     });
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
       final data = message.data;
@@ -76,19 +85,71 @@ class _HomeScreenState extends State<HomeScreen> {
           .doc(data['senderId'])
           .get()
           .then((value) => senderDoc = value);
-      Future.delayed(
-          const Duration(),
-          () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ChatScreen(receiverDoc: senderDoc),
-                ),
-              ));
+      Future.delayed(const Duration(), () {
+        if (!StaticVars.onChatScreen) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(receiverDoc: senderDoc),
+            ),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(receiverDoc: senderDoc),
+            ),
+          );
+        }
+      });
     });
+    // FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    //   final notification = message.notification;
+    //   final android = notification?.android;
+
+    //   if (android != null) {
+    //     flutterLocalNotificationsPlugin.show(
+    //       notification.hashCode,
+    //       notification!.title,
+    //       notification.body,
+    //       const NotificationDetails(
+    //         android: AndroidNotificationDetails(
+    //           'chatapp',
+    //           'chatapp channel',
+    //         ),
+    //       ),
+    //     );
+    //   }
+
+    // navigate to chat screen when notification is tapped
+
+    // final data = message.data;
+    // DocumentSnapshot? senderDoc;
+    // await _firestore
+    //     .collection('users')
+    //     .doc(data['senderId'])
+    //     .get()
+    //     .then((value) => senderDoc = value);
+    // Future.delayed(const Duration(), () {
+    //   if (!StaticVars.onChatScreen) {
+    //     Navigator.of(context).push(
+    //       MaterialPageRoute(
+    //         builder: (context) => ChatScreen(receiverDoc: senderDoc),
+    //       ),
+    //     );
+    //   } else {
+    //     Navigator.of(context).pushReplacement(
+    //       MaterialPageRoute(
+    //         builder: (context) => ChatScreen(receiverDoc: senderDoc),
+    //       ),
+    //     );
+    //   }
+    // });
+    // });
   }
 
   @override
   void initState() {
     super.initState();
+    StaticVars.onChatScreen = false;
     notifSetup();
   }
 
@@ -256,25 +317,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     }),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                onTap: () async {
-                  setState(() => isLoading = true);
-                  _scaffoldKey.currentState!.closeDrawer();
-                  try {
-                    await _auth.signOut().then((value) => Navigator.of(context)
-                        .pushReplacement(MaterialPageRoute(
-                            builder: (context) => const StartScreen())));
-                  } catch (e) {
-                    setState(() => isLoading = false);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('An error occured')));
-                    return;
-                  }
-                },
-                leading: const Icon(Icons.logout_rounded),
-                title: const Text('Logout', style: TextStyle(fontSize: 16)),
               ),
               const Spacer(),
               ListTile(
@@ -470,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           },
                                           child: Row(
                                             children: [
-                                              const SizedBox(width: 20),
+                                              const SizedBox(width: 15),
                                               const CircleAvatar(
                                                 radius: 35,
                                               ),
@@ -486,7 +528,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           fontSize: 16)),
                                                   const SizedBox(height: 5),
                                                   SizedBox(
-                                                    width: 200,
+                                                    width: 180,
                                                     child: Text(
                                                       "${lastMessageInfo['senderId'] == _auth.currentUser!.uid ? 'You: ' : ''}$lastMessage",
                                                       style: const TextStyle(
@@ -511,8 +553,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             fontSize: 14)),
                                                     const SizedBox(height: 5),
                                                     Text(
-                                                        timestamp.substring(
-                                                            0, 10),
+                                                        DateFormat(
+                                                                'MMM d, yyyy')
+                                                            .format(
+                                                                DateTime.parse(
+                                                                    timestamp)),
                                                         style: const TextStyle(
                                                             fontSize: 8.5)),
                                                   ],
@@ -533,7 +578,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           },
                                           child: Row(
                                             children: [
-                                              const SizedBox(width: 20),
+                                              const SizedBox(width: 15),
                                               const CircleAvatar(
                                                 radius: 35,
                                                 backgroundColor: Colors.grey,
@@ -548,7 +593,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           fontSize: 16)),
                                                   const SizedBox(height: 5),
                                                   SizedBox(
-                                                    width: 200,
+                                                    width: 180,
                                                     child: Text(
                                                       "${lastMessageInfo['senderId'] == _auth.currentUser!.uid ? 'You: ' : ''}$lastMessage",
                                                       style: const TextStyle(
@@ -564,9 +609,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                               Padding(
                                                 padding: const EdgeInsets.only(
                                                     right: 20),
-                                                child: Text(timestamp,
-                                                    style: const TextStyle(
-                                                        fontSize: 14)),
+                                                child: Column(
+                                                  children: [
+                                                    Text(
+                                                        timestamp.substring(
+                                                            11, 16),
+                                                        style: const TextStyle(
+                                                            fontSize: 14)),
+                                                    const SizedBox(height: 5),
+                                                    Text(
+                                                        DateFormat(
+                                                                'MMM d, yyyy')
+                                                            .format(
+                                                                DateTime.parse(
+                                                                    timestamp)),
+                                                        style: const TextStyle(
+                                                            fontSize: 8.5)),
+                                                  ],
+                                                ),
                                               ),
                                             ],
                                           ),
