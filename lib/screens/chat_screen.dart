@@ -332,18 +332,18 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.attach_file_rounded, size: 23),
-                        splashColor: Colors.transparent,
-                        highlightColor: Colors.transparent,
-                      ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.camera_alt_rounded, size: 23),
-                        splashColor: Colors.transparent,
-                        highlightColor: Colors.transparent,
-                      ),
+                      // IconButton(
+                      //   onPressed: () {},
+                      //   icon: const Icon(Icons.attach_file_rounded, size: 23),
+                      //   splashColor: Colors.transparent,
+                      //   highlightColor: Colors.transparent,
+                      // ),
+                      // IconButton(
+                      //   onPressed: () {},
+                      //   icon: const Icon(Icons.camera_alt_rounded, size: 23),
+                      //   splashColor: Colors.transparent,
+                      //   highlightColor: Colors.transparent,
+                      // ),
                       const VerticalDivider(
                         width: 10,
                         endIndent: 10,
@@ -395,7 +395,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             headers: {
                               'Content-Type': 'application/json',
                               'Authorization': // change key
-                                  'key=AAAAAR-cw84:APA91bGHqbPyVVg2hnh5QZkk8esh5ecxO6ExS46R1iGf0byXXStXG0mPnj32GaGd5dgRn2n77Wz0qC_hyecoKe2W1lQO8C6-5S82jmLHj-4iHcWz_oM5GyfJLBtVHuLhHgVU5Kjpzdr-'
+                                  'key=server-key'
                             },
                             body: jsonEncode(
                               {

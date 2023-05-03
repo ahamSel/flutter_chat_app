@@ -119,30 +119,28 @@ class _HomeScreenState extends State<HomeScreen> {
     //     );
     //   }
 
-    // navigate to chat screen when notification is tapped
-
-    // final data = message.data;
-    // DocumentSnapshot? senderDoc;
-    // await _firestore
-    //     .collection('users')
-    //     .doc(data['senderId'])
-    //     .get()
-    //     .then((value) => senderDoc = value);
-    // Future.delayed(const Duration(), () {
-    //   if (!StaticVars.onChatScreen) {
-    //     Navigator.of(context).push(
-    //       MaterialPageRoute(
-    //         builder: (context) => ChatScreen(receiverDoc: senderDoc),
-    //       ),
-    //     );
-    //   } else {
-    //     Navigator.of(context).pushReplacement(
-    //       MaterialPageRoute(
-    //         builder: (context) => ChatScreen(receiverDoc: senderDoc),
-    //       ),
-    //     );
-    //   }
-    // });
+    //   final data = message.data;
+    //   DocumentSnapshot? senderDoc;
+    //   await _firestore
+    //       .collection('users')
+    //       .doc(data['senderId'])
+    //       .get()
+    //       .then((value) => senderDoc = value);
+    //   Future.delayed(const Duration(), () {
+    //     if (!StaticVars.onChatScreen) {
+    //       Navigator.of(context).push(
+    //         MaterialPageRoute(
+    //           builder: (context) => ChatScreen(receiverDoc: senderDoc),
+    //         ),
+    //       );
+    //     } else {
+    //       Navigator.of(context).pushReplacement(
+    //         MaterialPageRoute(
+    //           builder: (context) => ChatScreen(receiverDoc: senderDoc),
+    //         ),
+    //       );
+    //     }
+    //   });
     // });
   }
 
